@@ -7,6 +7,10 @@ import (
 )
 
 func TestClient_Time(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	muc := mangaupdates.Client{}
 
 	tr, err := muc.Time()
@@ -32,6 +36,10 @@ func TestClient_Time(t *testing.T) {
 }
 
 func TestClient_SeriesSearch(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	muc := mangaupdates.Client{}
 
 	req := mangaupdates.SeriesSearchRequest{
