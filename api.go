@@ -1,6 +1,7 @@
 package mangaupdates
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	nethttp "net/http"
@@ -92,4 +93,87 @@ func (muc *Client) Time() (*TimeResponse, error) {
 	}
 
 	return tr, nil
+}
+
+type SType string
+
+const (
+	STypeTitle       SType = "title"
+	STypeDescription SType = "description"
+)
+
+type SeriesSearchRequest struct {
+	Search string `json:"search"`
+	SType  SType  `json:"stype"`
+}
+
+type SeriesSearchResponseResultRecord struct {
+	SeriesID int    `json:"series_id"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+}
+
+type SeriesSearchResponseResult struct {
+	Record *SeriesSearchResponseResultRecord `json:"record"`
+}
+
+type SeriesSearchResponse struct {
+	TotalHits int                          `json:"total_hits"`
+	Page      int                          `json:"page"`
+	PerPage   int                          `json:"per_page"`
+	Results   []SeriesSearchResponseResult `json:"results"`
+}
+
+func (muc *Client) SeriesSearch(request SeriesSearchRequest) (*SeriesSearchResponse, error) {
+	var (
+		err             error
+		seriesSearchURL *url.URL
+	)
+
+	seriesSearchURL, err = baseURL.Parse("/v1/series/search")
+	if err != nil {
+		return nil, fmt.Errorf("could not parse url: %w", err)
+	}
+
+	var rawRequestBody []byte
+
+	rawRequestBody, err = json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("could not encode request body: %w", err)
+	}
+
+	reqBody := bytes.NewBuffer(rawRequestBody)
+
+	var req *nethttp.Request
+	req, err = nethttp.NewRequest(nethttp.MethodPost, seriesSearchURL.String(), reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("could not create HTTP request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	hc := muc.httpClient()
+
+	var resp *nethttp.Response
+
+	resp, err = hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not get HTTP response: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		// TODO: Return information about error.
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	d := json.NewDecoder(resp.Body)
+
+	ssr := &SeriesSearchResponse{}
+
+	err = d.Decode(&ssr)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode JSON: %w", err)
+	}
+
+	return ssr, nil
 }
