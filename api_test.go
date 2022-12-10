@@ -77,3 +77,35 @@ func TestClient_SeriesSearch(t *testing.T) {
 		}
 	}
 }
+
+func TestClient_SeriesByID(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
+	muc := mangaupdates.Client{}
+
+	seriesID := mangaupdates.SeriesID(24348008396)
+
+	series, err := muc.SeriesByID(seriesID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if series == nil {
+		t.Fatalf("muc.SeriesByID(%d) = nil; want non-nil", seriesID)
+	}
+
+	if got := series.SeriesID; got == 0 {
+		t.Errorf("muc.SeriesByID(%d).SeriesID = %#v; want non-zero", seriesID, got)
+	}
+	if got, want := series.Title, "Youjo Senki (Novel)"; got != want {
+		t.Errorf("muc.SeriesByID(%d).Title = %#v; want %#v", seriesID, got, want)
+	}
+	if got, want := series.URL, "https://www.mangaupdates.com/series/b6o6bik/youjo-senki-novel"; got != want {
+		t.Errorf("muc.SeriesSearch(%d).URL = %#v; want %#v", seriesID, got, want)
+	}
+	if got, want := series.Type, "Novel"; got != want {
+		t.Errorf("muc.SeriesSearch(%d).Type = %#v; want %#v", seriesID, got, want)
+	}
+}

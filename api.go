@@ -17,6 +17,8 @@ var (
 	defaultHTTPClient chttp.Client
 )
 
+type SeriesID int64
+
 func init() {
 	var err error
 
@@ -102,19 +104,20 @@ const (
 	STypeDescription SType = "description"
 )
 
+type Series struct {
+	SeriesID int    `json:"series_id"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	Type     string `json:"type"`
+}
+
 type SeriesSearchRequest struct {
 	Search string `json:"search"`
 	SType  SType  `json:"stype"`
 }
 
-type SeriesSearchResponseResultRecord struct {
-	SeriesID int    `json:"series_id"`
-	Title    string `json:"title"`
-	URL      string `json:"url"`
-}
-
 type SeriesSearchResponseResult struct {
-	Record *SeriesSearchResponseResultRecord `json:"record"`
+	Record *Series `json:"record"`
 }
 
 type SeriesSearchResponse struct {
@@ -176,4 +179,49 @@ func (muc *Client) SeriesSearch(request SeriesSearchRequest) (*SeriesSearchRespo
 	}
 
 	return ssr, nil
+}
+
+func (muc *Client) SeriesByID(seriesID SeriesID) (*Series, error) {
+	var (
+		err       error
+		seriesURL *url.URL
+	)
+
+	seriesURL, err = baseURL.Parse(fmt.Sprintf("/v1/series/%d", seriesID))
+	if err != nil {
+		return nil, fmt.Errorf("could not parse url: %w", err)
+	}
+
+	var req *nethttp.Request
+	req, err = nethttp.NewRequest(nethttp.MethodGet, seriesURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not create HTTP request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	hc := muc.httpClient()
+
+	var resp *nethttp.Response
+
+	resp, err = hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not get HTTP response: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		// TODO: Return information about error.
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	d := json.NewDecoder(resp.Body)
+
+	s := &Series{}
+
+	err = d.Decode(&s)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode JSON: %w", err)
+	}
+
+	return s, nil
 }
